@@ -54,7 +54,7 @@ interface UserApiService {
 }
 
 val retrofit = Retrofit.Builder()
-    .baseUrl("https://nutricontrolapifilesadministration-bvf4bbbpgpb5h5dw.brazilsouth-01.azurewebsites.net/")
+    .baseUrl("https://verdeva-ayagdeb0dceddwgw.canadacentral-01.azurewebsites.net/")
     .addConverterFactory(GsonConverterFactory.create())
     .build()
 

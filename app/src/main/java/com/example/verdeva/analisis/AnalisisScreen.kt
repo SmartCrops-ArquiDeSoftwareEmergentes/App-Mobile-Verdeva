@@ -1,8 +1,6 @@
 package com.example.verdeva.analysis.presentation
 
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,76 +18,75 @@ import androidx.navigation.NavHostController
 import com.example.verdeva.dashboard.presentation.components.BottomNavigationBar
 import com.example.verdeva.dashboard.presentation.components.TopBarNutriControl
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
-import retrofit2.http.Header
-import retrofit2.http.Path
 import okhttp3.OkHttpClient
-import androidx.datastore.preferences.core.stringPreferencesKey
-import com.example.verdeva.dataStore
+import java.text.SimpleDateFormat
+import java.util.*
 
-val jwtTokenKey = stringPreferencesKey("jwt_token")
-val usernameKey = stringPreferencesKey("username")
+// ==== Modelos y API (nuevo endpoint público Beeceptor) ====
 
-suspend fun getJwtToken(context: android.content.Context): String? {
-    return context.dataStore.data.first()[jwtTokenKey]
-}
-
-suspend fun getUsername(context: android.content.Context): String? {
-    return context.dataStore.data.first()[usernameKey]
-}
-
-// ==== Modelos ====
-
-data class Sensor(
-    val id: Int,
-    val type: String,
-    val unitOfMeasurement: String,
-    val status: String
-)
-
-data class SensorReading(
+// Modelo que coincide con la respuesta que enviaste
+data class RemoteSensorReading(
+    val sensor_id: Int,
+    val value: Double,
+    val created_user: Int?,
     val timestamp: String,
-    val value: Double
+    val id: String
 )
 
-// ==== API ====
-
-interface SensorApiService {
-    @GET("api/Device/sensors/by-user/{username}")
-    suspend fun getSensorsByUser(
-        @Path("username") username: String,
-        @Header("Authorization") authHeader: String
-    ): List<Sensor>
-
-    @GET("api/Device/sensors/{sensorId}/readings")
-    suspend fun getSensorReadings(
-        @Path("sensorId") sensorId: Int,
-        @Header("Authorization") authHeader: String
-    ): List<SensorReading>
+interface BeeceptorApiService {
+    @GET("api/sensor-readings")
+    suspend fun getAllSensorReadings(): List<RemoteSensorReading>
 }
 
-fun provideSensorApiService(): SensorApiService {
+fun provideBeeceptorApiService(): BeeceptorApiService {
     val client = OkHttpClient.Builder().build()
     val retrofit = Retrofit.Builder()
-        .baseUrl("https://nutricontrolapifilesadministration-bvf4bbbpgpb5h5dw.brazilsouth-01.azurewebsites.net/")
+        .baseUrl("https://verdeva-sensors.free.beeceptor.com/")
         .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
-    return retrofit.create(SensorApiService::class.java)
+    return retrofit.create(BeeceptorApiService::class.java)
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
+// Utilidad para parsear timestamps ISO (ej: "2025-10-29T21:37:00") -> millis
+private fun parseTimestampMillis(ts: String): Long {
+    return try {
+        // Creamos una instancia local porque SimpleDateFormat no es thread-safe
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+        sdf.isLenient = false
+        sdf.parse(ts)?.time ?: 0L
+    } catch (e: Exception) {
+        Log.w("AnalisisScreen", "parseTimestampMillis: no se pudo parsear timestamp: $ts", e)
+        0L
+    }
+}
+
+// Formatea un timestamp ISO a una cadena legible, p. ej. "29/10 21:37:00".
+private fun formatTimestampReadable(ts: String): String {
+    return try {
+        val millis = parseTimestampMillis(ts)
+        if (millis <= 0L) return "-"
+        val out = SimpleDateFormat("dd/MM HH:mm:ss", Locale.getDefault())
+        out.format(Date(millis))
+    } catch (e: Exception) {
+        Log.w("AnalisisScreen", "formatTimestampReadable: fallo al formatear timestamp: $ts", e)
+        "-"
+    }
+}
+
 @Composable
 fun AnalisisScreen(
     navController: NavHostController,
     onMiPerfilClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var searchText by remember { mutableStateOf("") }
     val sensorValues = remember { mutableStateListOf<Pair<String, String>>() }
@@ -99,34 +95,61 @@ fun AnalisisScreen(
     LaunchedEffect(Unit) {
         scope.launch(Dispatchers.IO) {
             try {
-                val jwt = getJwtToken(context)
-                val username = getUsername(context)
+                // Hacemos polling continuo al endpoint público y actualizamos la lista
+                val api = provideBeeceptorApiService()
 
-                Log.d("AnalisisScreen", "JWT: $jwt")
-                Log.d("AnalisisScreen", "Username: $username")
+                while (isActive) {
+                    try {
+                        val readings = api.getAllSensorReadings()
 
-                if (jwt != null && username != null) {
-                    val authHeader = "Bearer $jwt"
-                    val api = provideSensorApiService()
+                        // Agrupar por sensor_id y elegir la lectura con timestamp más reciente
+                        val latestBySensor: Map<Int, RemoteSensorReading> = readings
+                            .groupBy { it.sensor_id }
+                            .mapValues { entry ->
+                                entry.value.maxByOrNull { r ->
+                                    parseTimestampMillis(r.timestamp)
+                                }!!
+                            }
 
-                    val sensors = api.getSensorsByUser(username, authHeader)
-                    Log.d("AnalisisScreen", "Sensores encontrados: ${sensors.size}")
+                        // Actualizar la lista de valores en el hilo principal
+                        withContext(Dispatchers.Main) {
+                            sensorValues.clear()
 
-                    sensorValues.clear()
-                    for (sensor in sensors) {
-                        val readings = api.getSensorReadings(sensor.id, authHeader)
-                        val latestValue = readings.lastOrNull()?.value
-                        if (latestValue != null) {
-                            sensorValues.add(sensor.type to "$latestValue ${sensor.unitOfMeasurement}")
+                            if (latestBySensor.isEmpty()) {
+                                // Mostrar mensaje vacío o placeholder
+                                sensorValues.add("Sin datos" to "No se encontraron lecturas")
+                            } else {
+                                // Ordenar por sensor_id para consistencia en la UI
+                                latestBySensor.toSortedMap().forEach { (sensorId, reading) ->
+                                    val label = "Sensor $sensorId"
+                                    val readableTs = formatTimestampReadable(reading.timestamp)
+                                    val valueText = "${reading.value} · $readableTs"
+                                    sensorValues.add(label to valueText)
+                                }
+                            }
+
+                            isLoading = false
+                        }
+                    } catch (inner: Exception) {
+                        Log.e("AnalisisScreen", "Error al obtener o procesar lecturas", inner)
+                        withContext(Dispatchers.Main) {
+                            // Si hay error, mostrarlo en UI reemplazando la lista
+                            sensorValues.clear()
+                            sensorValues.add("Error" to (inner.message ?: "Error desconocido"))
+                            isLoading = false
                         }
                     }
-                } else {
-                    Log.d("AnalisisScreen", "JWT o username no encontrados en DataStore.")
+
+                    // Esperar antes del siguiente polling
+                    delay(5000)
                 }
             } catch (e: Exception) {
-                Log.e("AnalisisScreen", "Error al obtener sensores o lecturas", e)
-            } finally {
-                isLoading = false
+                Log.e("AnalisisScreen", "Error en polling de lecturas", e)
+                withContext(Dispatchers.Main) {
+                    sensorValues.clear()
+                    sensorValues.add("Error" to (e.message ?: "Error desconocido"))
+                    isLoading = false
+                }
             }
         }
     }
