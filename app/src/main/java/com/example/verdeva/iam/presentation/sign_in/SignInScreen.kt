@@ -5,9 +5,9 @@ import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,6 +34,8 @@ import retrofit2.Response
 import androidx.datastore.preferences.core.*
 import com.example.verdeva.dataStore
 import com.example.verdeva.R
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 
 /* ------------------ MODELOS ------------------ */
 
@@ -103,6 +104,7 @@ fun SignInScreen(navController: NavHostController) {
     var message by remember { mutableStateOf("") }
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.height(350.dp)) {
@@ -113,7 +115,7 @@ fun SignInScreen(navController: NavHostController) {
                     path = Path().apply {
                         moveTo(0f, 0f)
                         lineTo(0f, height * 0.9f)
-                        quadraticBezierTo(width * 0.5f, height * 1.00f, width, height * 0.65f)
+                        quadraticTo(width * 0.5f, height * 1.00f, width, height * 0.65f)
                         lineTo(width, 0f)
                         close()
                     },
@@ -167,7 +169,13 @@ fun SignInScreen(navController: NavHostController) {
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = Color(0xFF024728),
                     focusedBorderColor = Color(0xFF024728)
-                )
+                ),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(mask = '*'),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Text(if (passwordVisible) "🙈" else "👁️", fontSize = 18.sp)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -224,9 +232,9 @@ fun SignInScreen(navController: NavHostController) {
                         .background(Color(0xFF024728))
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                ClickableText(
-                    text = AnnotatedString("¿No tienes una cuenta? Regístrate"),
-                    onClick = { navController.navigate("sign_up") },
+                Text(
+                    text = "¿No tienes una cuenta? Regístrate",
+                    modifier = Modifier.clickable { navController.navigate("sign_up") },
                     style = LocalTextStyle.current.copy(
                         fontSize = 14.sp,
                         color = Color(0xFF024728)
