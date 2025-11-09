@@ -30,7 +30,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
 import com.example.verdeva.dashboard.presentation.components.TopBarNutriControl
 import com.example.verdeva.dashboard.presentation.components.BottomNavigationBar
-
+import com.example.verdeva.R
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

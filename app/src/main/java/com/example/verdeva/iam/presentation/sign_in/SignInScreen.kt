@@ -34,6 +34,7 @@ import retrofit2.http.POST
 import retrofit2.Response
 import androidx.datastore.preferences.core.*
 import com.example.verdeva.dataStore
+import com.example.verdeva.R
 
 /* ------------------ MODELOS ------------------ */
 
