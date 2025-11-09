@@ -372,7 +372,7 @@ fun MembresiaScreen(
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "Podrás disfrutar todos los beneficios exclusivos de Verdeva, recuerda que el pago se irá realizando mes a mes hasta que canceles la suscripción.",
+                        "Podrás disfrutar todos los beneficios exclusivos de NutriControl, recuerda que el pago se irá realizando mes a mes hasta que canceles la suscripción.",
                         fontSize = 15.sp,
                         textAlign = TextAlign.Center,
                         color = Color(0xFF024728),
