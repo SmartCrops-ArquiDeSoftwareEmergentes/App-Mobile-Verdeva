@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.nutricontrol"
+    namespace = "com.example.verdeva"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.nutricontrol"
+        applicationId = "com.example.verdeva"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
