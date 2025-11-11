@@ -75,7 +75,7 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Bienvenido a NutriControl,",
+                    text = "Bienvenido a Verdeva,",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF024728),
