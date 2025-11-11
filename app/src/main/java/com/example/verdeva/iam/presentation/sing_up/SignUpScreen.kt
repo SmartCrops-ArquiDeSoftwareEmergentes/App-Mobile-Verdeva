@@ -6,20 +6,21 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -85,17 +86,22 @@ fun SignUpScreen(navController: NavHostController) {
                     path = Path().apply {
                         moveTo(0f, 0f)
                         lineTo(0f, height * 0.9f)
-                        quadraticBezierTo(width * 0.5f, height * 1.00f, width, height * 0.65f)
+                        quadraticTo(width * 0.5f, height * 1.00f, width, height * 0.65f)
                         lineTo(width, 0f)
                         close()
                     },
                     color = Color(0xFF024728)
                 )
             }
+
+            // Usar el nuevo logo y redimensionarlo para que no ocupe toda la cabecera
             Image(
-                painter = painterResource(id = R.drawable.logo_nutricontrol),
+                painter = painterResource(id = R.drawable.verdeva_logo),
                 contentDescription = "Logo",
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier
+                    .size(140.dp)
+                    .align(Alignment.Center),
+                contentScale = ContentScale.Fit
             )
         }
 
@@ -249,10 +255,12 @@ fun SignUpScreen(navController: NavHostController) {
                         .background(Color(0xFF024728))
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                ClickableText(
-                    text = AnnotatedString("¿Tienes una cuenta? Inicia sesión"),
-                    onClick = { navController.popBackStack("sign_in", false) },
-                    style = LocalTextStyle.current.copy(fontSize = 14.sp, color = Color(0xFF024728))
+                Text(
+                    text = "¿Tienes una cuenta? Inicia sesión",
+                    modifier = Modifier.clickable { navController.popBackStack("sign_in", false) },
+                    style = LocalTextStyle.current.copy(fontSize = 14.sp, color = Color(0xFF024728)),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
